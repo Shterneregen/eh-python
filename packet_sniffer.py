@@ -19,7 +19,7 @@ def get_login_info(packet, keywords):
     if packet.haslayer(scapy.Raw):
         load = packet[scapy.Raw].load
         for keyword in keywords:
-            if keyword.encode() in load:
+            if keyword in load.decode():
                 return load
 
 
