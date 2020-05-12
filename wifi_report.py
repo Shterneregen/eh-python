@@ -1,31 +1,10 @@
 #!/usr/bin/env python
 import re
-import smtplib
 import subprocess
-from email.header import Header
-from email.mime.text import MIMEText
 
 import chardet
 
-
-# https://myaccount.google.com/lesssecureapps
-
-def get_mime_text(plain_msg, subject, sender, recipients):
-    mime_msg = MIMEText(plain_msg, 'plain', 'utf-8')
-    mime_msg['Subject'] = Header(subject, 'utf-8')
-    mime_msg['From'] = sender
-    mime_msg['To'] = recipients
-    return mime_msg
-
-
-def send_mail(mime_msg, psw):
-    server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
-    try:
-        server.starttls()
-        server.login(mime_msg['From'], psw)
-        server.sendmail(mime_msg['From'], mime_msg['To'], mime_msg.as_string())
-    finally:
-        server.quit()
+from mail_sender import MailSender
 
 
 def get_wifi_info():
@@ -42,11 +21,10 @@ def get_wifi_info():
     return result
 
 
-plain_msg = get_wifi_info()
 login = "xxx@gmail.com"
 psw = ""
-recipients_emails = login
+subject = "Wi-Fi Report"
+wifi_info = get_wifi_info()
 
-mime_msg = get_mime_text(plain_msg, "Report", login, login)
-
-send_mail(mime_msg, psw)
+mail_sender = MailSender("smtp.gmail.com", 587, login, psw, login, subject, wifi_info)
+mail_sender.sendmail()
